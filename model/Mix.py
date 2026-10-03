@@ -249,6 +249,21 @@ def cmd_palette(a):
         status = "OK" if won else f"RISQUE (le jury verrait plutôt {palette[int(np.argmin(ranks))]})"
         print(f"{code}: {recipe_str(best['recipe']):38s} dE={dist:5.1f}  {status}")
 
+def cmd_pieces(a):
+    from detect_pieces import detect
+    cap = open_source(a.source)
+    ok, img = cap.read()
+    cap.release()
+    if not ok:
+        sys.exit("Aucune frame lue.")
+    pieces, _ = detect(img, a.cube_area)
+    for p in pieces:
+        cv2.drawContours(img, [p["contour"]], -1, (0, 255, 0), 2)
+        x, y = map(int, p["center"])
+        cv2.putText(img, p["shape"], (x - 20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        print(f"{p['shape']:8s} centre=({x},{y}) angle={p['angle']:.0f}")
+    cv2.imwrite(a.out, img)
+    print(f"{len(pieces)} pièces, image annotée : {a.out}")
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -304,6 +319,12 @@ def main():
     p.add_argument("--table", default="recettes.json")
     p.add_argument("--colors", required=True, help="liste hex séparée par des virgules")
     p.set_defaults(fn=cmd_palette)
+    
+    p = sub.add_parser("pieces", help="détecte les formes Duplo sur une frame")
+    p.add_argument("--source", default="0")
+    p.add_argument("--cube-area", type=float, required=True, help="aire d'un cube en pixels")
+    p.add_argument("--out", default="pieces.jpg")
+    p.set_defaults(fn=cmd_pieces)
 
     a = ap.parse_args()
     a.fn(a)
